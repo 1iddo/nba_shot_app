@@ -25,6 +25,8 @@ import matplotlib.pyplot as plt
 import streamlit as st
 from pathlib import Path
 
+st.write("App booted…")  # TEMP – remove later
+
 # ----------------------------
 # Streamlit Page Config
 # ----------------------------
@@ -122,23 +124,45 @@ def generate_fake_data(n=2000, players=("Player A", "Player B", "Player C"), sea
 
     return df
 
+@st.cache_data(show_spinner=True)
 def load_data():
     """
-    Load shots.csv if present; else generate a fake dataset.
-    Expected columns (fallbacks applied if missing):
-    player, season, x, y (feet), is_three, is_corner, made (0/1), period, shot_clock
+    Load shots.csv if present in repo root; else generate fake data.
+    Shows a banner telling you which path was used.
     """
     csv_path = Path("shots.csv")
+
+    # Minimal dtype map to reduce memory & avoid mixed types
+    dtypes = {
+        "player": "string",
+        "season": "string",
+        "x": "float64",
+        "y": "float64",
+        "made": "Int8",
+        "is_three": "Int8",
+        "is_corner": "Int8",
+        "period": "Int8",
+        "shot_clock": "float64",
+    }
+    usecols = list(dtypes.keys())
+
     if csv_path.exists():
         try:
-            df = pd.read_csv(csv_path)
+            df = pd.read_csv(
+                csv_path,
+                usecols=[c for c in usecols if c in pd.read_csv(csv_path, nrows=0).columns],
+                dtype={k: v for k, v in dtypes.items() if k in pd.read_csv(csv_path, nrows=0).columns},
+                low_memory=False,
+            )
+            st.success("Loaded shots.csv from repository.")
         except Exception as e:
-            st.warning(f"Failed to read shots.csv ({e}). Generating fake data instead.")
+            st.warning(f"shots.csv found but could not be read ({e}). Using generated sample data.")
             df = generate_fake_data()
     else:
+        st.info("shots.csv not found in repo root — using generated sample data.")
         df = generate_fake_data()
 
-    # Normalize column names to lower-case
+    # Normalize column names
     df.columns = [c.strip().lower() for c in df.columns]
 
     # Provide fallbacks if required columns are missing
@@ -154,7 +178,6 @@ def load_data():
         if col not in df.columns:
             df[col] = default
 
-    # Optional columns
     if "is_three" not in df.columns:
         df["is_three"] = 0
     if "is_corner" not in df.columns:
