@@ -19,6 +19,8 @@ import io
 import math
 import numpy as np
 import pandas as pd
+import matplotlib
+matplotlib.use("Agg")  # use headless backend for Streamlit Cloud
 import matplotlib.pyplot as plt
 import streamlit as st
 from pathlib import Path
